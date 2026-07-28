@@ -2,12 +2,15 @@ import { readFile } from "node:fs/promises";
 import { DEFAULT_CONFIG, validateConfig } from "./config.js";
 import type { StewardConfig } from "./types.js";
 
-export async function loadConfig(path: string): Promise<StewardConfig> {
+export async function loadConfig(
+  path: string,
+  base: StewardConfig = DEFAULT_CONFIG,
+): Promise<StewardConfig> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(await readFile(path, "utf8"));
   } catch (error) {
-    if (isMissingFile(error)) return DEFAULT_CONFIG;
+    if (isMissingFile(error)) return base;
     throw new Error(
       `Unable to load model steward config: ${messageOf(error)}`,
       { cause: error },
@@ -15,35 +18,38 @@ export async function loadConfig(path: string): Promise<StewardConfig> {
   }
   if (!isObject(parsed))
     throw new Error("Model steward config must be a JSON object.");
-  const candidate = mergeConfig(parsed);
+  const candidate = mergeConfig(parsed, base);
   const errors = validateConfig(candidate);
   if (errors.length > 0)
     throw new Error(`Invalid model steward config: ${errors.join(" ")}`);
   return candidate;
 }
 
-function mergeConfig(input: Record<string, unknown>): StewardConfig {
+function mergeConfig(
+  input: Record<string, unknown>,
+  base: StewardConfig,
+): StewardConfig {
   return {
-    ...DEFAULT_CONFIG,
+    ...base,
     ...input,
     weights: {
-      ...DEFAULT_CONFIG.weights,
+      ...base.weights,
       ...(isObject(input["weights"]) ? input["weights"] : {}),
     },
     compaction: {
-      ...DEFAULT_CONFIG.compaction,
+      ...base.compaction,
       ...(isObject(input["compaction"]) ? input["compaction"] : {}),
     },
     memory: {
-      ...DEFAULT_CONFIG.memory,
+      ...base.memory,
       ...(isObject(input["memory"]) ? input["memory"] : {}),
     },
     candidates: Array.isArray(input["candidates"])
       ? (input["candidates"] as StewardConfig["candidates"])
-      : DEFAULT_CONFIG.candidates,
+      : base.candidates,
     highRiskAllowlist: Array.isArray(input["highRiskAllowlist"])
       ? (input["highRiskAllowlist"] as readonly string[])
-      : DEFAULT_CONFIG.highRiskAllowlist,
+      : base.highRiskAllowlist,
   };
 }
 

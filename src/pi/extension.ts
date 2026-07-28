@@ -43,8 +43,16 @@ export default function modelStewardExtension(pi: ExtensionAPI): void {
   const health = new Map<string, HealthState>();
 
   async function reload(ctx: ExtensionContext): Promise<void> {
+    const globalConfigPath = join(
+      process.env["USERPROFILE"] ?? process.env["HOME"] ?? "",
+      ".model-steward",
+      "config.json",
+    );
+    const globalConfig = await loadConfig(globalConfigPath);
     const configPath = join(configDirectory(ctx), "config.json");
-    config = await loadConfig(configPath);
+    config = ctx.isProjectTrusted()
+      ? await loadConfig(configPath, globalConfig)
+      : globalConfig;
     store = new LocalObservationStore(
       join(config.localDataDirectory, "observations.jsonl"),
     );
