@@ -30,7 +30,7 @@ export function scoreCandidate(
   const latencies = matching.flatMap((item) =>
     item.latencyMs === undefined ? [] : [item.latencyMs],
   );
-  const meanCostUsd = mean(costs);
+  const meanCostUsd = costs.length > 0 ? mean(costs) : undefined;
   const meanLatencyMs = mean(latencies);
   const confidence = Math.min(
     1,
@@ -42,7 +42,9 @@ export function scoreCandidate(
     candidate.enabled &&
     capabilityEligible &&
     (features.risk !== "high" || highRiskAllowlist.includes(key));
-  const normalizedCost = 1 / (1 + meanCostUsd);
+  const referenceCost = meanCostUsd ?? estimatedReferenceCost(candidate);
+  const normalizedCost =
+    referenceCost === undefined ? 0.5 : 1 / (1 + referenceCost);
   const normalizedLatency = 1 / (1 + meanLatencyMs / 1_000);
   const priorityBias = (candidate.priority ?? 0) / 10_000;
   const score =
@@ -55,6 +57,9 @@ export function scoreCandidate(
     `${known.length} scored samples for ${features.category}`,
     `quality estimate ${(quality * 100).toFixed(1)}%`,
     `confidence ${(confidence * 100).toFixed(1)}%`,
+    referenceCost === undefined
+      ? "cost unknown"
+      : `reference cost $${referenceCost.toFixed(6)} for 1K input + 500 output tokens`,
   ];
   if (!candidate.enabled) reasons.push("candidate disabled");
   if (!capabilityEligible)
@@ -65,13 +70,22 @@ export function scoreCandidate(
     candidate,
     score,
     quality,
-    meanCostUsd,
+    ...(meanCostUsd === undefined ? {} : { meanCostUsd }),
     meanLatencyMs,
     samples: matching.length,
     confidence,
     eligible,
     reasons,
   };
+}
+
+function estimatedReferenceCost(candidate: ModelCandidate): number | undefined {
+  if (!candidate.pricing) return undefined;
+  return (
+    (1_000 * candidate.pricing.inputUsdPerMillion +
+      500 * candidate.pricing.outputUsdPerMillion) /
+    1_000_000
+  );
 }
 
 function mean(values: readonly number[]): number {

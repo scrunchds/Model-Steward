@@ -28,6 +28,14 @@ export const DEFAULT_CONFIG: StewardConfig = {
     injectionTokenBudget: 800,
     retentionDays: 90,
   },
+  pricing: {
+    remoteEnabled: false,
+    openRouterEnabled: true,
+    liteLlmEnabled: true,
+    timeoutMs: 10_000,
+    maxResponseBytes: 5_000_000,
+    maxSnapshotAgeHours: 168,
+  },
 };
 
 export function validateConfig(config: StewardConfig): readonly string[] {
@@ -90,6 +98,25 @@ export function validateConfig(config: StewardConfig): readonly string[] {
     config.memory.retentionDays < 1
   )
     errors.push("memory.retentionDays must be a positive integer.");
+  if (
+    !Number.isInteger(config.pricing.timeoutMs) ||
+    config.pricing.timeoutMs < 1_000 ||
+    config.pricing.timeoutMs > 60_000
+  )
+    errors.push("pricing.timeoutMs must be between 1000 and 60000.");
+  if (
+    !Number.isInteger(config.pricing.maxResponseBytes) ||
+    config.pricing.maxResponseBytes < 100_000 ||
+    config.pricing.maxResponseBytes > 20_000_000
+  )
+    errors.push(
+      "pricing.maxResponseBytes must be between 100000 and 20000000.",
+    );
+  if (
+    !Number.isFinite(config.pricing.maxSnapshotAgeHours) ||
+    config.pricing.maxSnapshotAgeHours < 1
+  )
+    errors.push("pricing.maxSnapshotAgeHours must be at least 1.");
   const keys = config.candidates.map(
     (candidate) => `${candidate.provider}/${candidate.model}`,
   );

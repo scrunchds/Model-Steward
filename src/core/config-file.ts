@@ -44,6 +44,10 @@ function mergeConfig(
       ...base.memory,
       ...(isObject(input["memory"]) ? input["memory"] : {}),
     },
+    pricing: {
+      ...base.pricing,
+      ...(isObject(input["pricing"]) ? input["pricing"] : {}),
+    },
     candidates: Array.isArray(input["candidates"])
       ? (input["candidates"] as StewardConfig["candidates"])
       : base.candidates,

@@ -8,6 +8,12 @@ import { classifyTask } from "../core/features.js";
 import { loadConfig } from "../core/config-file.js";
 import { decideRoute } from "../core/router.js";
 import { filterCompatibleCandidates } from "../core/provider-adapter.js";
+import {
+  applyPricing,
+  PricingCatalog,
+  snapshotAgeHours,
+  type PricingSnapshot,
+} from "../core/pricing.js";
 import { LocalObservationStore } from "../core/store.js";
 import { createObservation } from "../core/telemetry.js";
 import {
@@ -34,6 +40,8 @@ interface PendingTurn {
 export default function modelStewardExtension(pi: ExtensionAPI): void {
   let config: StewardConfig | undefined;
   let store: LocalObservationStore | undefined;
+  let pricingCatalog: PricingCatalog | undefined;
+  let pricingSnapshot: PricingSnapshot | undefined;
   let observations: readonly Observation[] = [];
   let pending: PendingTurn | undefined;
   let lastObservation: Observation | undefined;
@@ -56,7 +64,19 @@ export default function modelStewardExtension(pi: ExtensionAPI): void {
     store = new LocalObservationStore(
       join(config.localDataDirectory, "observations.jsonl"),
     );
+    pricingCatalog = new PricingCatalog(
+      join(config.localDataDirectory, "pricing-snapshot.json"),
+    );
     observations = await store.readAll();
+    try {
+      pricingSnapshot = await pricingCatalog.read();
+    } catch (error) {
+      pricingSnapshot = undefined;
+      ctx.ui.notify(
+        `Model Steward ignored an invalid pricing snapshot: ${messageOf(error)}`,
+        "warning",
+      );
+    }
     updateStatus(ctx);
   }
 
@@ -104,8 +124,9 @@ export default function modelStewardExtension(pi: ExtensionAPI): void {
         input: model.input,
         contextWindow: model.contextWindow,
       }));
+      const pricedCandidates = applyPricing(config.candidates, pricingSnapshot);
       const compatible = filterCompatibleCandidates(
-        config.candidates,
+        pricedCandidates,
         available,
       );
       const effectiveConfig: StewardConfig = {
@@ -251,7 +272,7 @@ export default function modelStewardExtension(pi: ExtensionAPI): void {
 
   pi.registerCommand("steward", {
     description:
-      "Show Model Steward status, reload configuration, or score the last turn",
+      "Show status, reload configuration, inspect/refresh pricing, or score the last turn",
     handler: async (args, ctx) => {
       const [command, value] = args.trim().split(/\s+/, 2);
       if (command === "reload") {
@@ -267,6 +288,52 @@ export default function modelStewardExtension(pi: ExtensionAPI): void {
             "error",
           );
         }
+        return;
+      }
+      if (command === "pricing") {
+        const action = value?.trim();
+        if (action === "refresh") {
+          if (!config || !pricingCatalog) {
+            ctx.ui.notify("Model Steward is not initialized.", "warning");
+            return;
+          }
+          if (!config.pricing.remoteEnabled) {
+            ctx.ui.notify(
+              "Remote pricing refresh is disabled. Set pricing.remoteEnabled=true, reload, then retry.",
+              "warning",
+            );
+            return;
+          }
+          try {
+            pricingSnapshot = await pricingCatalog.refresh(
+              config.pricing,
+              ctx.signal,
+            );
+            ctx.ui.notify(
+              `Pricing refreshed: ${pricingSnapshot.records.length} validated model records from ${pricingSnapshot.sources.length} sources.`,
+              "info",
+            );
+          } catch (error) {
+            ctx.ui.notify(
+              `Pricing refresh failed; the prior snapshot remains active: ${messageOf(error)}`,
+              "error",
+            );
+          }
+          return;
+        }
+        if (!pricingSnapshot) {
+          ctx.ui.notify(
+            "No pricing snapshot is available. Use /steward pricing refresh after enabling remote pricing.",
+            "info",
+          );
+          return;
+        }
+        const age = snapshotAgeHours(pricingSnapshot);
+        const stale = config ? age > config.pricing.maxSnapshotAgeHours : true;
+        ctx.ui.notify(
+          `Pricing records=${pricingSnapshot.records.length}; sources=${pricingSnapshot.sources.length}; age=${age.toFixed(1)}h; ${stale ? "stale" : "fresh"}.`,
+          stale ? "warning" : "info",
+        );
         return;
       }
       if (command === "feedback") {

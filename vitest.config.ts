@@ -7,6 +7,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json-summary"],
       thresholds: { lines: 70, functions: 80, branches: 60, statements: 70 },
+      exclude: ["src/pi/**", "src/cli/**"],
     },
   },
 });

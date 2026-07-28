@@ -23,6 +23,8 @@ Model Steward is local-first and privacy preserving. It evaluates **provider/mod
 - `/steward` — show current status.
 - `/steward reload` — reload local configuration and observations.
 - `/steward feedback success|failure` — score the most recently recorded turn.
+- `/steward pricing` — inspect local pricing snapshot freshness.
+- `/steward pricing refresh` — explicitly refresh enabled public metadata sources; sends no prompts, outputs, telemetry, or credentials.
 
 ## Configuration
 

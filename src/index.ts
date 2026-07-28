@@ -18,6 +18,14 @@ export {
   hashIdentifier,
 } from "./core/privacy.js";
 export {
+  applyPricing,
+  estimateCost,
+  PricingCatalog,
+  snapshotAgeHours,
+  type PriceRecord,
+  type PricingSnapshot,
+} from "./core/pricing.js";
+export {
   discoverCandidates,
   filterCompatibleCandidates,
   resolveCandidate,

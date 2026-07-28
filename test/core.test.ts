@@ -1,10 +1,14 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_CONFIG,
   LocalObservationStore,
+  PricingCatalog,
+  applyPricing,
+  estimateCost,
+  snapshotAgeHours,
   buildFallbackPlan,
   classifyTask,
   createObservation,
@@ -267,6 +271,170 @@ describe("fallbacks", () => {
         new Date(),
       ).ordered[0],
     ).toEqual(strong);
+  });
+});
+
+describe("pricing", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("refreshes bounded OpenRouter and LiteLLM catalogs and persists a snapshot", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "model-steward-"));
+    const path = join(directory, "pricing.json");
+    const responses = [
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: "vendor/model",
+              pricing: { prompt: "0.000001", completion: "0.000002" },
+              context_length: 128000,
+              supported_parameters: ["tools"],
+              architecture: { input_modalities: ["text", "image"] },
+            },
+            {
+              id: "router/unknown",
+              pricing: { prompt: "-1", completion: "-1" },
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+      new Response(
+        JSON.stringify({
+          "openrouter/vendor/model": {
+            input_cost_per_token: 0.000009,
+            output_cost_per_token: 0.000009,
+            max_input_tokens: 32000,
+            litellm_provider: "openrouter",
+          },
+          "ollama/local-model": {
+            input_cost_per_token: 0,
+            output_cost_per_token: 0,
+            max_input_tokens: 64000,
+            litellm_provider: "ollama",
+          },
+          "openrouter/openrouter/auto": {
+            input_cost_per_token: 0,
+            output_cost_per_token: 0,
+            litellm_provider: "openrouter",
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(responses.shift()!)),
+    );
+    const catalog = new PricingCatalog(path);
+    const snapshot = await catalog.refresh({
+      ...DEFAULT_CONFIG.pricing,
+      remoteEnabled: true,
+    });
+    expect(snapshot.sources).toHaveLength(2);
+    expect(
+      snapshot.records.find((record) => record.model === "vendor/model"),
+    ).toMatchObject({
+      inputUsdPerMillion: 1,
+      outputUsdPerMillion: 2,
+      supportsTools: true,
+      supportsImages: true,
+      source: "openrouter",
+    });
+    expect(
+      snapshot.records.find((record) => record.provider === "ollama"),
+    ).toMatchObject({
+      model: "local-model",
+      inputUsdPerMillion: 0,
+    });
+    expect(
+      snapshot.records.some((record) => record.model === "openrouter/auto"),
+    ).toBe(false);
+    expect(await catalog.read()).toEqual(snapshot);
+  });
+
+  it("fails closed when remote pricing or all sources are disabled", async () => {
+    const catalog = new PricingCatalog(
+      join(await mkdtemp(join(tmpdir(), "model-steward-")), "pricing.json"),
+    );
+    await expect(catalog.refresh(DEFAULT_CONFIG.pricing)).rejects.toThrow(
+      "disabled",
+    );
+    await expect(
+      catalog.refresh({
+        ...DEFAULT_CONFIG.pricing,
+        remoteEnabled: true,
+        openRouterEnabled: false,
+        liteLlmEnabled: false,
+      }),
+    ).rejects.toThrow("No remote pricing source");
+  });
+
+  it("preserves a previous snapshot after a failed refresh", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "model-steward-"));
+    const path = join(directory, "pricing.json");
+    const original = {
+      schemaVersion: 1,
+      retrievedAt: "2026-01-01T00:00:00Z",
+      records: [],
+      sources: [],
+    };
+    await writeFile(path, JSON.stringify(original));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("failure", { status: 503 }))),
+    );
+    const catalog = new PricingCatalog(path);
+    await expect(
+      catalog.refresh({
+        ...DEFAULT_CONFIG.pricing,
+        remoteEnabled: true,
+        liteLlmEnabled: false,
+      }),
+    ).rejects.toThrow("HTTP 503");
+    expect(await catalog.read()).toEqual(original);
+  });
+
+  it("applies validated catalog pricing without overriding manual pricing", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "model-steward-"));
+    const path = join(directory, "pricing.json");
+    const snapshot = {
+      schemaVersion: 1 as const,
+      retrievedAt: "2026-01-01T00:00:00.000Z",
+      sources: [
+        { url: "https://example.test/catalog", sha256: "a".repeat(64) },
+      ],
+      records: [
+        {
+          provider: "openrouter",
+          model: "vendor/model",
+          inputUsdPerMillion: 1,
+          outputUsdPerMillion: 2,
+          supportsTools: true,
+          source: "openrouter" as const,
+          sourceUrl: "https://example.test/catalog",
+          retrievedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    };
+    await writeFile(path, JSON.stringify(snapshot));
+    const loaded = await new PricingCatalog(path).read();
+    const candidate = applyPricing(
+      [{ provider: "openrouter", model: "vendor/model", enabled: true }],
+      loaded,
+    )[0];
+    expect(candidate?.pricing).toEqual({
+      inputUsdPerMillion: 1,
+      outputUsdPerMillion: 2,
+    });
+    expect(estimateCost(candidate!, 1_000_000, 500_000)).toBe(2);
+    expect(
+      snapshotAgeHours(snapshot, new Date("2026-01-02T00:00:00Z").getTime()),
+    ).toBe(24);
+  });
+
+  it("treats unknown pricing as unknown rather than free", () => {
+    expect(estimateCost(fast, 1_000, 1_000)).toBeUndefined();
   });
 });
 

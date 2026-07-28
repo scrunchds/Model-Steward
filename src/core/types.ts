@@ -34,6 +34,10 @@ export interface ModelCandidate extends ModelRef {
   readonly supportsTools?: boolean;
   readonly supportsImages?: boolean;
   readonly contextWindow?: number;
+  readonly pricing?: {
+    readonly inputUsdPerMillion: number;
+    readonly outputUsdPerMillion: number;
+  };
 }
 
 export interface ObjectiveWeights {
@@ -61,6 +65,15 @@ export interface MemoryPolicy {
   readonly retentionDays: number;
 }
 
+export interface PricingPolicy {
+  readonly remoteEnabled: boolean;
+  readonly openRouterEnabled: boolean;
+  readonly liteLlmEnabled: boolean;
+  readonly timeoutMs: number;
+  readonly maxResponseBytes: number;
+  readonly maxSnapshotAgeHours: number;
+}
+
 export interface StewardConfig {
   readonly mode: "observe" | "recommend" | "route";
   readonly candidates: readonly ModelCandidate[];
@@ -73,13 +86,14 @@ export interface StewardConfig {
   readonly fallbackToCurrent: boolean;
   readonly compaction: CompactionPolicy;
   readonly memory: MemoryPolicy;
+  readonly pricing: PricingPolicy;
 }
 
 export interface CandidateScore {
   readonly candidate: ModelCandidate;
   readonly score: number;
   readonly quality: number;
-  readonly meanCostUsd: number;
+  readonly meanCostUsd?: number;
   readonly meanLatencyMs: number;
   readonly samples: number;
   readonly confidence: number;
