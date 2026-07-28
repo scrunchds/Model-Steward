@@ -281,6 +281,21 @@ describe("local telemetry", () => {
     expect(await readFile(path, "utf8")).not.toContain("fix the test failure");
   });
 
+  it("omits unusable optional provider metrics instead of blocking the agent", () => {
+    const item = createObservation({
+      model: fast,
+      features,
+      latencyMs: Number.NaN,
+      costUsd: Number.POSITIVE_INFINITY,
+      inputTokens: -1,
+      outputTokens: 10,
+    });
+    expect(item).not.toHaveProperty("latencyMs");
+    expect(item).not.toHaveProperty("costUsd");
+    expect(item).not.toHaveProperty("inputTokens");
+    expect(item.outputTokens).toBe(10);
+  });
+
   it("rejects secret-like material", async () => {
     const directory = await mkdtemp(join(tmpdir(), "model-steward-"));
     const store = new LocalObservationStore(

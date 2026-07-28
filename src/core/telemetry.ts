@@ -23,24 +23,20 @@ export function createObservation(
     model: input.model,
     features: input.features,
     outcome: input.outcome ?? "unknown",
-    ...(input.latencyMs === undefined
-      ? {}
-      : { latencyMs: nonNegative(input.latencyMs, "latencyMs") }),
-    ...(input.inputTokens === undefined
-      ? {}
-      : { inputTokens: nonNegative(input.inputTokens, "inputTokens") }),
-    ...(input.outputTokens === undefined
-      ? {}
-      : { outputTokens: nonNegative(input.outputTokens, "outputTokens") }),
-    ...(input.costUsd === undefined
-      ? {}
-      : { costUsd: nonNegative(input.costUsd, "costUsd") }),
+    ...optionalMetric("latencyMs", input.latencyMs),
+    ...optionalMetric("inputTokens", input.inputTokens),
+    ...optionalMetric("outputTokens", input.outputTokens),
+    ...optionalMetric("costUsd", input.costUsd),
     source: input.source ?? "automatic",
   };
 }
 
-function nonNegative(value: number, name: string): number {
-  if (!Number.isFinite(value) || value < 0)
-    throw new Error(`${name} must be a finite non-negative number.`);
-  return value;
+function optionalMetric<
+  Name extends "latencyMs" | "inputTokens" | "outputTokens" | "costUsd",
+>(name: Name, value: number | undefined): Partial<Record<Name, number>> {
+  // Provider SDKs occasionally report NaN, Infinity, or sentinel negative costs.
+  // Optional telemetry must never block the host agent, so omit unusable values.
+  return value === undefined || !Number.isFinite(value) || value < 0
+    ? {}
+    : ({ [name]: value } as Record<Name, number>);
 }
