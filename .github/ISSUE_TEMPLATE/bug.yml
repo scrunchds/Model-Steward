@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible Model Steward defect
+title: "[Bug]: "
+labels: [bug, triage]
+body:
+  - type: checkboxes
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials, private source, prompts, responses, and personal data.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+  - type: textarea
+    attributes:
+      label: Description
+      description: What happened and what did you expect?
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Model Steward commit/version
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Environment
+      description: OS, Node.js, Pi version, provider/model identifiers (never credentials).
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: Minimal, sanitized steps.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Validation output
+      description: Sanitized errors or check output.

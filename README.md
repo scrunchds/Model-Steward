@@ -2,7 +2,7 @@
 
 Local-first, privacy-preserving model evaluation and fail-safe routing for coding agents.
 
-> **Development status:** pre-release. This repository is local-only and must not be published without explicit owner authorization.
+> **Development status:** experimental source preview. Model Steward is not yet recommended for production routing or npm installation.
 
 ## Design
 
@@ -49,7 +49,7 @@ Local runtime observations default to `~/.model-steward/observations.jsonl`. `.m
 
 ## Release policy
 
-No remote repository, package publication, release, tag, or global installation may occur without explicit owner authorization. `npm run release:guard` also requires `MODEL_STEWARD_RELEASE_APPROVED=yes`, but that variable is only a secondary safeguard—not a substitute for direct authorization.
+npm publication, package registries, version tags, and GitHub Releases require a separate explicit owner authorization. `npm run release:guard` also requires `MODEL_STEWARD_RELEASE_APPROVED=yes`, but that variable is only a secondary safeguard—not a substitute for direct authorization.
 
 ## Support the project
 

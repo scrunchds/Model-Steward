@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose an improvement
+title: "[Feature]: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What user problem should be solved?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Security, privacy, cost, and fallback implications
+      description: Include new data, network, provider, routing, or failure behavior.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternatives
