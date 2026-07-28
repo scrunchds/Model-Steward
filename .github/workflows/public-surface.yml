@@ -24,7 +24,7 @@ jobs:
       - name: Reject common secret and local-path patterns
         shell: bash
         run: |
-          if git grep -nEI '(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|C:\\Users\\|/Users/[^/]+/|/home/[^/]+/|E:\\Sandbox|E:/Sandbox)' -- . ':!package-lock.json'; then
+          if git grep -nEI '(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|C:\\Users\\|/Users/[^/]+/|/home/[^/]+/|E:\\Sandbox|E:/Sandbox)' -- . ':!package-lock.json' ':!.github/workflows/public-surface.yml'; then
             echo 'Public-surface scan failed.' >&2
             exit 1
           fi
