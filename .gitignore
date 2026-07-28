@@ -1,0 +1,17 @@
+# dependency files
+node_modules/
+coverage/
+dist/
+*.tgz
+
+# local/private runtime data
+.model-steward/
+.env
+.env.*
+!.env.example
+
+# editors and OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

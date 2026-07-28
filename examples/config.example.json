@@ -1,0 +1,55 @@
+{
+  "mode": "observe",
+  "candidates": [
+    {
+      "provider": "openrouter",
+      "model": "anthropic/claude-sonnet-4",
+      "enabled": true,
+      "priority": 10,
+      "supportsTools": true,
+      "tags": ["cloud", "general"]
+    },
+    {
+      "provider": "openrouter",
+      "model": "google/gemini-2.5-flash",
+      "enabled": true,
+      "supportsTools": true,
+      "tags": ["cloud", "fast"]
+    },
+    {
+      "provider": "ollama",
+      "model": "qwen2.5-coder:32b",
+      "enabled": true,
+      "supportsTools": true,
+      "tags": ["local", "private"]
+    }
+  ],
+  "weights": {
+    "quality": 0.65,
+    "cost": 0.15,
+    "latency": 0.1,
+    "uncertainty": 0.1
+  },
+  "minimumSamples": 10,
+  "explorationRate": 0.05,
+  "highRiskAllowlist": ["openrouter/anthropic/claude-sonnet-4"],
+  "preserveCurrentOnTie": true,
+  "fallbackToCurrent": true,
+  "compaction": {
+    "enabled": true,
+    "trigger": "hybrid",
+    "thresholdPercent": 65,
+    "cooldownMinutes": 15,
+    "minimumTokens": 20000,
+    "compactAfterSuccessfulTask": true
+  },
+  "memory": {
+    "enabled": false,
+    "maxEntries": 500,
+    "maxEntryCharacters": 1500,
+    "retrievalLimit": 5,
+    "injectionTokenBudget": 800,
+    "retentionDays": 90
+  },
+  "localDataDirectory": "~/.model-steward"
+}

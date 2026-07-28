@@ -1,0 +1,54 @@
+# Model Steward
+
+Local-first, privacy-preserving model evaluation and fail-safe routing for coding agents.
+
+> **Development status:** pre-release. This repository is local-only and must not be published without explicit owner authorization.
+
+## Design
+
+Model Steward learns from structured outcomes for individual `provider/model` pairs. It supports any cloud, local, or custom model already exposed through Pi's model registry. It does not handle credentials, proxy traffic, intercept TLS, patch subprocesses, or persist prompts and responses.
+
+Modes are intentionally progressive:
+
+1. **observe** — record metadata; never change the model (default)
+2. **recommend** — explain a recommendation; never change the model
+3. **route** — select an eligible model with ordered fallbacks
+
+Every routing failure retains Pi's current model. High-risk tasks are fail-closed to an explicit model allowlist.
+
+## Features
+
+- multiple models per provider and multiple providers per installation
+- OpenAI, Anthropic, Google, OpenRouter, local servers, and custom endpoints through Pi
+- quality/cost/latency/uncertainty scoring
+- bounded exploration only among eligible models
+- circuit breakers and ordered fallbacks
+- structured local telemetry with no prompt or response content
+- disk cache of LLM content: **none**
+- network service or daemon: **none**
+- provider HTTP interception: **none**
+- explicit release guard
+
+## Development
+
+```bash
+npm install
+npm run check
+npm run pack:check
+```
+
+The Pi extension entry point is `model-steward/pi`; the discoverable skill is in `skills/model-steward/`.
+
+## Configuration
+
+Copy `examples/config.example.json` to `.model-steward/config.json` in a trusted project and edit the candidates. Start in `observe` mode.
+
+Local runtime observations default to `~/.model-steward/observations.jsonl`. `.model-steward/` is ignored from Git.
+
+## Release policy
+
+No remote repository, package publication, release, tag, or global installation may occur without explicit owner authorization. `npm run release:guard` also requires `MODEL_STEWARD_RELEASE_APPROVED=yes`, but that variable is only a secondary safeguard—not a substitute for direct authorization.
+
+## License
+
+Apache-2.0.
