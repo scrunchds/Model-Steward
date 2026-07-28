@@ -1,6 +1,6 @@
 # Contributing
 
-This project is currently developed in a private local sandbox. Public contributions are not yet accepted.
+This project is currently developed in a private local sandbox. Public code contributions are not yet accepted. Because Model Steward uses separate noncommercial and commercial licensing, substantive contributions require an accepted contributor license agreement; see [`CONTRIBUTOR_LICENSE_AGREEMENT.md`](CONTRIBUTOR_LICENSE_AGREEMENT.md).
 
 Development changes must:
 

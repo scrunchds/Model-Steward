@@ -1,7 +1,7 @@
 ---
 name: model-steward
 description: Evaluates and safely recommends or routes among multiple LLM models across cloud, local, and custom Pi providers. Use for model benchmarking, cost/latency/quality comparisons, routing configuration, fallback diagnosis, and Model Steward status. Does not proxy traffic or store prompts.
-license: Apache-2.0
+license: PolyForm-Noncommercial-1.0.0
 compatibility: Requires Node.js 20+; optional Pi extension integration requires pi coding agent 0.40+.
 ---
 

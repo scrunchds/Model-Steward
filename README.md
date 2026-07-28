@@ -59,6 +59,10 @@ If Model Steward is useful to you, you can support continued development:
 
 The public README uses a normal link because GitHub strips executable `<script>` tags. A website-only embed snippet is available in [`docs/WEBSITE_SUPPORT.md`](docs/WEBSITE_SUPPORT.md).
 
-## License
+## Licensing
 
-Apache-2.0.
+Model Steward is **source-available**, not OSI open source.
+
+Noncommercial use is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Commercial use—including business use, paid hosting, resale, commercial redistribution, or inclusion in a paid product or service—requires a separate commercial license from the copyright holder.
+
+See [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md) for commercial licensing information.
