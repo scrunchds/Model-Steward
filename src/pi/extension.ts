@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { join } from "node:path";
 import type {
   ExtensionAPI,
@@ -51,11 +52,7 @@ export default function modelStewardExtension(pi: ExtensionAPI): void {
   const health = new Map<string, HealthState>();
 
   async function reload(ctx: ExtensionContext): Promise<void> {
-    const globalConfigPath = join(
-      process.env["USERPROFILE"] ?? process.env["HOME"] ?? "",
-      ".model-steward",
-      "config.json",
-    );
+    const globalConfigPath = join(homedir(), ".model-steward", "config.json");
     const globalConfig = await loadConfig(globalConfigPath);
     const configPath = join(configDirectory(ctx), "config.json");
     config = ctx.isProjectTrusted()
@@ -124,7 +121,11 @@ export default function modelStewardExtension(pi: ExtensionAPI): void {
         input: model.input,
         contextWindow: model.contextWindow,
       }));
-      const pricedCandidates = applyPricing(config.candidates, pricingSnapshot);
+      const pricedCandidates = applyPricing(
+        config.candidates,
+        pricingSnapshot,
+        config.pricing.maxSnapshotAgeHours,
+      );
       const compatible = filterCompatibleCandidates(
         pricedCandidates,
         available,
@@ -343,6 +344,10 @@ export default function modelStewardExtension(pi: ExtensionAPI): void {
         }
         if (!lastObservation || !store) {
           ctx.ui.notify("There is no recorded turn to score.", "warning");
+          return;
+        }
+        if (lastObservation.source === "manual") {
+          ctx.ui.notify("The last turn was already scored manually.", "info");
           return;
         }
         const scored = {

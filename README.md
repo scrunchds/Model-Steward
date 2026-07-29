@@ -13,6 +13,7 @@ Modes are intentionally progressive:
 1. **observe** — record metadata; never change the model (default)
 2. **recommend** — explain a recommendation; never change the model
 3. **route** — select an eligible model with ordered fallbacks
+4. **auto** — infer the task type from the task metadata, then route like `route`
 
 Every routing failure retains Pi's current model. High-risk tasks are fail-closed to an explicit model allowlist.
 
@@ -24,8 +25,10 @@ Every routing failure retains Pi's current model. High-risk tasks are fail-close
 - bounded exploration only among eligible models
 - circuit breakers and ordered fallbacks
 - structured local telemetry with no prompt or response content
-- optional validated pricing snapshots from OpenRouter and LiteLLM, with manual refresh and last-known-good fallback
-- unknown model prices remain unknown rather than being treated as free
+- optional validated pricing snapshots from OpenRouter and LiteLLM, with manual refresh, freshness limits, and last-known-good fallback
+- optional per-candidate task-type pools so Command Center can choose the best model within a specific routing category
+- an `auto` mode that infers the task type from task metadata before routing
+- unknown or stale model prices remain unknown rather than being treated as free
 - disk cache of LLM content: **none**
 - network service or daemon: **none**
 - provider HTTP interception: **none**
@@ -43,7 +46,7 @@ The Pi extension entry point is `model-steward/pi`; the discoverable skill is in
 
 ## Configuration
 
-Copy `examples/config.example.json` to `.model-steward/config.json` in a trusted project and edit the candidates. Start in `observe` mode.
+Copy `examples/config.example.json` to `.model-steward/config.json` in a trusted project and edit the candidates. Start in `observe` mode for evaluation, then switch to `auto` or `route` when you want the router to select a model.
 
 Local runtime observations default to `~/.model-steward/observations.jsonl`. `.model-steward/` is ignored from Git.
 

@@ -25,10 +25,17 @@ export class LocalObservationStore {
       if (isMissingFile(error)) return [];
       throw error;
     }
-    return content
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as Observation);
+    const records: Observation[] = [];
+    for (const line of content.split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const parsed = JSON.parse(line) as unknown;
+        if (isObservation(parsed)) records.push(parsed);
+      } catch {
+        continue;
+      }
+    }
+    return records;
   }
 
   public async clear(): Promise<void> {
@@ -41,4 +48,26 @@ export class LocalObservationStore {
 
 function isMissingFile(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+function isObservation(value: unknown): value is Observation {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (value as { schemaVersion?: unknown }).schemaVersion === 1 &&
+    typeof (value as { id?: unknown }).id === "string" &&
+    typeof (value as { timestamp?: unknown }).timestamp === "string" &&
+    typeof (value as { model?: unknown }).model === "object" &&
+    (value as { model?: { provider?: unknown; model?: unknown } }).model !==
+      null &&
+    typeof (value as { model?: { provider?: unknown } }).model?.provider ===
+      "string" &&
+    typeof (value as { model?: { model?: unknown } }).model?.model ===
+      "string" &&
+    typeof (value as { features?: unknown }).features === "object" &&
+    (value as { features?: unknown }).features !== null &&
+    typeof (value as { outcome?: unknown }).outcome === "string" &&
+    typeof (value as { source?: unknown }).source === "string"
+  );
 }

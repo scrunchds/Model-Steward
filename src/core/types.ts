@@ -1,4 +1,5 @@
 export type Outcome = "success" | "failure" | "unknown";
+export type TaskType = "coding" | "vision" | "reading" | "reasoning" | "fast";
 
 export interface ModelRef {
   readonly provider: string;
@@ -10,6 +11,8 @@ export interface TaskFeatures {
   readonly risk: "low" | "medium" | "high";
   readonly promptLengthBucket: "short" | "medium" | "long";
   readonly requiresTools: boolean;
+  readonly taskType?: TaskType;
+  readonly workflowTags?: readonly string[];
 }
 
 export interface Observation {
@@ -31,6 +34,8 @@ export interface ModelCandidate extends ModelRef {
   readonly minimumSamples?: number;
   readonly priority?: number;
   readonly tags?: readonly string[];
+  readonly workflowTags?: readonly string[];
+  readonly taskTypes?: readonly TaskType[];
   readonly supportsTools?: boolean;
   readonly supportsImages?: boolean;
   readonly contextWindow?: number;
@@ -75,7 +80,7 @@ export interface PricingPolicy {
 }
 
 export interface StewardConfig {
-  readonly mode: "observe" | "recommend" | "route";
+  readonly mode: "observe" | "recommend" | "route" | "auto";
   readonly candidates: readonly ModelCandidate[];
   readonly weights: ObjectiveWeights;
   readonly minimumSamples: number;
@@ -94,7 +99,7 @@ export interface CandidateScore {
   readonly score: number;
   readonly quality: number;
   readonly meanCostUsd?: number;
-  readonly meanLatencyMs: number;
+  readonly meanLatencyMs?: number;
   readonly samples: number;
   readonly confidence: number;
   readonly eligible: boolean;

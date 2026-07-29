@@ -1,5 +1,5 @@
 {
-  "mode": "observe",
+  "mode": "auto",
   "candidates": [
     {
       "provider": "openrouter",
@@ -7,21 +7,27 @@
       "enabled": true,
       "priority": 10,
       "supportsTools": true,
-      "tags": ["cloud", "general"]
+      "tags": ["cloud", "general"],
+      "workflowTags": ["implementation", "general"],
+      "taskTypes": ["reasoning", "reading"]
     },
     {
       "provider": "openrouter",
       "model": "google/gemini-2.5-flash",
       "enabled": true,
       "supportsTools": true,
-      "tags": ["cloud", "fast"]
+      "tags": ["cloud", "fast"],
+      "workflowTags": ["debugging", "general"],
+      "taskTypes": ["fast", "reading"]
     },
     {
       "provider": "ollama",
       "model": "qwen2.5-coder:32b",
       "enabled": true,
       "supportsTools": true,
-      "tags": ["local", "private"]
+      "tags": ["local", "private"],
+      "workflowTags": ["security", "implementation"],
+      "taskTypes": ["coding", "reasoning"]
     }
   ],
   "weights": {

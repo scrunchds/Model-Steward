@@ -1,4 +1,6 @@
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { DEFAULT_CONFIG, validateConfig } from "./config.js";
 import type { StewardConfig } from "./types.js";
 
@@ -6,9 +8,10 @@ export async function loadConfig(
   path: string,
   base: StewardConfig = DEFAULT_CONFIG,
 ): Promise<StewardConfig> {
+  const resolvedPath = expandHome(path);
   let parsed: unknown;
   try {
-    parsed = JSON.parse(await readFile(path, "utf8"));
+    parsed = JSON.parse(await readFile(resolvedPath, "utf8"));
   } catch (error) {
     if (isMissingFile(error)) return base;
     throw new Error(
@@ -21,7 +24,9 @@ export async function loadConfig(
   const candidate = mergeConfig(parsed, base);
   const errors = validateConfig(candidate);
   if (errors.length > 0)
-    throw new Error(`Invalid model steward config: ${errors.join(" ")}`);
+    throw new Error(
+      `Invalid model steward config at ${resolvedPath}: ${errors.join(" ")}`,
+    );
   return candidate;
 }
 
@@ -55,6 +60,12 @@ function mergeConfig(
       ? (input["highRiskAllowlist"] as readonly string[])
       : base.highRiskAllowlist,
   };
+}
+
+function expandHome(path: string): string {
+  if (path === "~") return homedir();
+  if (path.startsWith("~/")) return join(homedir(), path.slice(2));
+  return path;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
