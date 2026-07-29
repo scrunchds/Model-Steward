@@ -85,8 +85,11 @@ export class PricingCatalog {
 export function applyPricing(
   candidates: readonly ModelCandidate[],
   snapshot: PricingSnapshot | undefined,
+  maxSnapshotAgeHours = Number.POSITIVE_INFINITY,
+  now = Date.now(),
 ): readonly ModelCandidate[] {
-  if (!snapshot) return candidates;
+  if (!snapshot || !isPricingSnapshotFresh(snapshot, maxSnapshotAgeHours, now))
+    return candidates;
   return candidates.map((candidate) => {
     if (candidate.pricing) return candidate;
     const record = snapshot.records.find(
@@ -257,7 +260,8 @@ async function fetchBounded(
       throw new Error(
         `Pricing source ${url} returned HTTP ${response.status}.`,
       );
-    const length = Number(response.headers.get("content-length"));
+    const lengthHeader = response.headers.get("content-length");
+    const length = lengthHeader === null ? Number.NaN : Number(lengthHeader);
     if (Number.isFinite(length) && length > policy.maxResponseBytes)
       throw new Error(`Pricing source ${url} exceeds the response limit.`);
     const bytes = new Uint8Array(await response.arrayBuffer());
@@ -286,12 +290,40 @@ function validateSnapshot(value: unknown): PricingSnapshot {
       typeof record["provider"] !== "string" ||
       typeof record["model"] !== "string" ||
       !isNonNegative(record["inputUsdPerMillion"]) ||
-      !isNonNegative(record["outputUsdPerMillion"])
+      !isNonNegative(record["outputUsdPerMillion"]) ||
+      (record["supportsTools"] !== undefined &&
+        typeof record["supportsTools"] !== "boolean") ||
+      (record["supportsImages"] !== undefined &&
+        typeof record["supportsImages"] !== "boolean") ||
+      (record["contextWindow"] !== undefined &&
+        !isPositiveInteger(record["contextWindow"])) ||
+      (record["maxOutputTokens"] !== undefined &&
+        !isPositiveInteger(record["maxOutputTokens"])) ||
+      !isValidPriceSource(record["source"]) ||
+      typeof record["retrievedAt"] !== "string"
     ) {
       throw new Error("Pricing snapshot contains an invalid record.");
     }
   }
+  for (const source of value["sources"]) {
+    if (
+      !isObject(source) ||
+      typeof source["url"] !== "string" ||
+      typeof source["sha256"] !== "string" ||
+      source["sha256"].length !== 64
+    ) {
+      throw new Error("Pricing snapshot contains an invalid source.");
+    }
+  }
   return value as unknown as PricingSnapshot;
+}
+
+export function isPricingSnapshotFresh(
+  snapshot: PricingSnapshot,
+  maxSnapshotAgeHours: number,
+  now = Date.now(),
+): boolean {
+  return snapshotAgeHours(snapshot, now) <= maxSnapshotAgeHours;
 }
 
 function perMillion(value: unknown): number | undefined {
@@ -316,6 +348,12 @@ function optionalPositive<Name extends "contextWindow" | "maxOutputTokens">(
 }
 function isNonNegative(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+function isValidPriceSource(value: unknown): value is PriceRecord["source"] {
+  return value === "manual" || value === "openrouter" || value === "litellm";
 }
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

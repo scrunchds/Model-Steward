@@ -1,4 +1,4 @@
-import type { ModelCandidate } from "./types.js";
+import type { ModelCandidate, TaskType } from "./types.js";
 
 export interface AvailableModel {
   readonly provider: string;
@@ -97,16 +97,51 @@ export function discoverCandidates(
       ),
     )
     .slice(0, policy.maximumCandidates)
-    .map((model) => ({
-      provider: model.provider,
-      model: model.id,
-      enabled: policy.defaultEnabled,
-      supportsImages: model.input?.includes("image") ?? false,
-      ...(model.contextWindow === undefined
-        ? {}
-        : { contextWindow: model.contextWindow }),
-      tags: ["discovered"],
-    }));
+    .map((model) => {
+      const taskTypes = inferTaskTypes(model);
+      return {
+        provider: model.provider,
+        model: model.id,
+        enabled: policy.defaultEnabled,
+        supportsImages: model.input?.includes("image") ?? false,
+        ...(model.contextWindow === undefined
+          ? {}
+          : { contextWindow: model.contextWindow }),
+        tags: ["discovered", model.provider, model.id],
+        workflowTags: inferWorkflowTags(model),
+        ...(taskTypes.length === 0 ? {} : { taskTypes }),
+      };
+    });
+}
+
+function inferWorkflowTags(model: AvailableModel): readonly string[] {
+  const tags = new Set<string>(["discovered", model.provider, model.id]);
+  if (model.input?.includes("image")) tags.add("vision");
+  if ((model.contextWindow ?? 0) >= 64_000) tags.add("reading");
+  if ((model.contextWindow ?? 0) < 16_000) tags.add("fast");
+  return [...tags];
+}
+
+function inferTaskTypes(model: AvailableModel): readonly TaskType[] {
+  const tags = new Set<string>();
+  const id = model.id.toLowerCase();
+  if (
+    model.input?.includes("image") ||
+    id.includes("vision") ||
+    id.includes("image")
+  )
+    tags.add("vision");
+  if (
+    id.includes("coder") ||
+    id.includes("code") ||
+    id.includes("dev") ||
+    id.includes("program")
+  )
+    tags.add("coding");
+  if ((model.contextWindow ?? 0) >= 64_000) tags.add("reading");
+  if ((model.contextWindow ?? 0) < 16_000) tags.add("fast");
+  if (tags.size === 0) tags.add("reasoning");
+  return [...tags] as TaskType[];
 }
 
 function globToRegExp(glob: string): RegExp {

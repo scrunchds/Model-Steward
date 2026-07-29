@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { DEFAULT_CONFIG, validateConfig } from "../core/config.js";
 import { loadConfig } from "../core/config-file.js";
 
@@ -18,7 +17,7 @@ try {
       await printVersion();
       break;
     case "validate": {
-      const path = resolve(argument ?? ".model-steward/config.json");
+      const path = argument ?? ".model-steward/config.json";
       const config = await loadConfig(path);
       const errors = validateConfig(config);
       if (errors.length > 0) throw new Error(errors.join(" "));

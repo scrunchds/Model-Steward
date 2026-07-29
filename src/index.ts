@@ -12,7 +12,7 @@ export {
   type FallbackPlan,
   type HealthState,
 } from "./core/fallback.js";
-export { classifyTask } from "./core/features.js";
+export { classifyTask, inferTaskType } from "./core/features.js";
 export {
   assertPrivacySafeObservation,
   hashIdentifier,
@@ -20,6 +20,7 @@ export {
 export {
   applyPricing,
   estimateCost,
+  isPricingSnapshotFresh,
   PricingCatalog,
   snapshotAgeHours,
   type PriceRecord,

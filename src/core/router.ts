@@ -24,7 +24,13 @@ export function decideRoute(
   health: ReadonlyMap<string, HealthState>,
   randomUnit?: () => number,
 ): RoutingDecision {
-  const recommendation = recommend(config, observations, features, randomUnit);
+  const recommendation = recommend(
+    config,
+    observations,
+    features,
+    current,
+    randomUnit,
+  );
   const ranked = recommendation.scores.map((score) => score.candidate);
   const plan = buildFallbackPlan(
     ranked,
@@ -44,7 +50,7 @@ export function decideRoute(
     : plan.ordered;
   const target = attempts[0];
   const shouldSwitch =
-    config.mode === "route" &&
+    (config.mode === "route" || config.mode === "auto") &&
     target !== undefined &&
     modelKey(target) !== (current ? modelKey(current) : "");
   return {
@@ -56,8 +62,12 @@ export function decideRoute(
         ? "Observe mode never changes the active model."
         : config.mode === "recommend"
           ? "Recommend mode reports but never changes the active model."
-          : target
-            ? recommendation.reason
-            : plan.reasons.join(" "),
+          : config.mode === "auto"
+            ? target
+              ? recommendation.reason
+              : plan.reasons.join(" ")
+            : target
+              ? recommendation.reason
+              : plan.reasons.join(" "),
   };
 }
