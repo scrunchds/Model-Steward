@@ -15,18 +15,22 @@ export async function loadConfig(
   } catch (error) {
     if (isMissingFile(error)) return base;
     throw new Error(
-      `Unable to load model steward config: ${messageOf(error)}`,
+      `Unable to load model steward config at ${resolvedPath}: ${messageOf(error)}`,
       { cause: error },
     );
   }
-  if (!isObject(parsed))
-    throw new Error("Model steward config must be a JSON object.");
+  if (!isObject(parsed)) {
+    throw new Error(
+      `Model steward config must be a JSON object. Path: ${resolvedPath}.`,
+    );
+  }
   const candidate = mergeConfig(parsed, base);
   const errors = validateConfig(candidate);
-  if (errors.length > 0)
+  if (errors.length > 0) {
     throw new Error(
       `Invalid model steward config at ${resolvedPath}: ${errors.join(" ")}`,
     );
+  }
   return candidate;
 }
 
@@ -71,9 +75,11 @@ function expandHome(path: string): string {
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
 function isMissingFile(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
+
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }

@@ -1,7 +1,10 @@
 import { mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { Observation } from "./types.js";
 import { assertPrivacySafeObservation } from "./privacy.js";
+import { createLogger, describeError, errorContext } from "./logger.js";
+import type { Observation } from "./types.js";
+
+const storeLogger = createLogger("model-steward.store");
 
 export class LocalObservationStore {
   public constructor(private readonly path: string) {}
@@ -12,6 +15,13 @@ export class LocalObservationStore {
     const handle = await open(this.path, "a", 0o600);
     try {
       await handle.appendFile(`${JSON.stringify(observation)}\n`, "utf8");
+    } catch (error) {
+      storeLogger.error("Failed to append observation.", {
+        path: this.path,
+        error: describeError(error),
+        ...errorContext(error),
+      });
+      throw error;
     } finally {
       await handle.close();
     }
@@ -23,6 +33,11 @@ export class LocalObservationStore {
       content = await readFile(this.path, "utf8");
     } catch (error) {
       if (isMissingFile(error)) return [];
+      storeLogger.error("Failed to read observation store.", {
+        path: this.path,
+        error: describeError(error),
+        ...errorContext(error),
+      });
       throw error;
     }
     const records: Observation[] = [];
@@ -31,8 +46,11 @@ export class LocalObservationStore {
       try {
         const parsed = JSON.parse(line) as unknown;
         if (isObservation(parsed)) records.push(parsed);
-      } catch {
-        continue;
+      } catch (error) {
+        storeLogger.warn("Skipped malformed observation record.", {
+          path: this.path,
+          error: describeError(error),
+        });
       }
     }
     return records;

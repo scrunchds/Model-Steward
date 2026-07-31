@@ -1,25 +1,16 @@
 # Changelog
 
-## 0.1.1 - 2026-07-29
-
-### Added
-
-- `auto` routing mode that infers task type from task metadata before selecting a model.
-- Task-type-aware candidate preference for Command Center workflows.
-- Soft workflow-tag bias for close candidate scores.
-- Richer discovery tags for models discovered through Pi.
+## 0.1.2 - 2026-07-31
 
 ### Changed
 
-- Hardened config loading and validation.
-- Hardened pricing snapshot validation and freshness handling.
-- Hardened provider discovery and local observation storage against malformed data.
-- Updated README, example config, and skill docs for standalone and Command Center usage.
-- Bumped package version to `0.1.1`.
+- Refactored CLI and Pi extension execution into explicit controllers with dependency injection boundaries.
+- Added structured JSON logging with timestamps, scope, and context for CLI, store, and extension operations.
+- Improved user-facing failure messages for config loading, routing, pricing refresh, telemetry storage, and compaction.
+- Hardened provider discovery and candidate scoring into smaller, testable helper functions.
 
 ### Fixed
 
-- Missing latency is treated as unknown instead of zero.
-- Malformed observation lines are skipped instead of breaking local telemetry reads.
-- Tie handling and fallback behavior now respect routing configuration.
-- `~` paths are expanded when loading config files.
+- Missing or malformed runtime data now emits actionable feedback while preserving fallback behavior.
+- Invalid observations, pricing snapshots, and model-switch failures are logged and handled without aborting the host agent.
+- Route selection and fallback logic now preserve the existing model as a terminal safety net.

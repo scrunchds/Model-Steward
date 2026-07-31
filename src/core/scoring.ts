@@ -6,6 +6,14 @@ import type {
   TaskFeatures,
 } from "./types.js";
 
+export interface CandidateScoreContext {
+  readonly observations: readonly Observation[];
+  readonly features: TaskFeatures;
+  readonly weights: ObjectiveWeights;
+  readonly minimumSamples: number;
+  readonly highRiskAllowlist: readonly string[];
+}
+
 export function scoreCandidate(
   candidate: ModelCandidate,
   observations: readonly Observation[],
@@ -14,12 +22,25 @@ export function scoreCandidate(
   minimumSamples: number,
   highRiskAllowlist: readonly string[],
 ): CandidateScore {
+  return scoreCandidateWithContext(candidate, {
+    observations,
+    features,
+    weights,
+    minimumSamples,
+    highRiskAllowlist,
+  });
+}
+
+export function scoreCandidateWithContext(
+  candidate: ModelCandidate,
+  context: CandidateScoreContext,
+): CandidateScore {
   const key = `${candidate.provider}/${candidate.model}`;
-  const matching = observations.filter(
+  const matching = context.observations.filter(
     (item) =>
       item.model.provider === candidate.provider &&
       item.model.model === candidate.model &&
-      item.features.category === features.category,
+      item.features.category === context.features.category,
   );
   const known = matching.filter((item) => item.outcome !== "unknown");
   const successes = known.filter((item) => item.outcome === "success").length;
@@ -34,17 +55,18 @@ export function scoreCandidate(
   const meanLatencyMs = latencies.length > 0 ? mean(latencies) : undefined;
   const confidence = Math.min(
     1,
-    matching.length / Math.max(1, candidate.minimumSamples ?? minimumSamples),
+    matching.length /
+      Math.max(1, candidate.minimumSamples ?? context.minimumSamples),
   );
   const capabilityEligible =
-    !features.requiresTools || candidate.supportsTools !== false;
-  const requestedTaskType = features.taskType;
+    !context.features.requiresTools || candidate.supportsTools !== false;
+  const requestedTaskType = context.features.taskType;
   const taskTypes = candidate.taskTypes ?? [];
   const taskTypeMatched =
     requestedTaskType === undefined ||
     taskTypes.length === 0 ||
     taskTypes.includes(requestedTaskType);
-  const workflowTags = features.workflowTags ?? [];
+  const workflowTags = context.features.workflowTags ?? [];
   const candidateTags = candidate.tags ?? [];
   const matchingWorkflowTags = workflowTags.filter((tag) =>
     candidateTags.includes(tag),
@@ -57,7 +79,8 @@ export function scoreCandidate(
     candidate.enabled &&
     capabilityEligible &&
     taskTypeMatched &&
-    (features.risk !== "high" || highRiskAllowlist.includes(key));
+    (context.features.risk !== "high" ||
+      context.highRiskAllowlist.includes(key));
   const referenceCost = meanCostUsd ?? estimatedReferenceCost(candidate);
   const normalizedCost =
     referenceCost === undefined ? 0.5 : 1 / (1 + referenceCost);
@@ -72,15 +95,15 @@ export function scoreCandidate(
         ? 0.08
         : -0.1;
   const score =
-    weights.quality * quality +
-    weights.cost * normalizedCost +
-    weights.latency * normalizedLatency -
-    weights.uncertainty * (1 - confidence) +
+    context.weights.quality * quality +
+    context.weights.cost * normalizedCost +
+    context.weights.latency * normalizedLatency -
+    context.weights.uncertainty * (1 - confidence) +
     priorityBias +
     workflowBias +
     taskTypeBias;
   const reasons = [
-    `${known.length} scored samples for ${features.category}`,
+    `${known.length} scored samples for ${context.features.category}`,
     `quality estimate ${(quality * 100).toFixed(1)}%`,
     `confidence ${(confidence * 100).toFixed(1)}%`,
     meanLatencyMs === undefined
@@ -101,7 +124,10 @@ export function scoreCandidate(
   if (!candidate.enabled) reasons.push("candidate disabled");
   if (!capabilityEligible)
     reasons.push("candidate is marked as not supporting tools");
-  if (features.risk === "high" && !highRiskAllowlist.includes(key))
+  if (
+    context.features.risk === "high" &&
+    !context.highRiskAllowlist.includes(key)
+  )
     reasons.push("not approved for high-risk tasks");
   return {
     candidate,

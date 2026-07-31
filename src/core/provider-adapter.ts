@@ -25,33 +25,8 @@ export function resolveCandidate(
   candidate: ModelCandidate,
   availableModels: readonly AvailableModel[],
 ): CandidateResolution {
-  const available = availableModels.find(
-    (model) =>
-      model.provider === candidate.provider && model.id === candidate.model,
-  );
-  const reasons: string[] = [];
-  if (!available)
-    reasons.push(
-      "model is absent from the host model registry or lacks configured authentication",
-    );
-  if (
-    available &&
-    candidate.supportsImages &&
-    !available.input?.includes("image")
-  )
-    reasons.push(
-      "candidate requires image support but the registered model does not advertise it",
-    );
-  if (
-    available &&
-    candidate.contextWindow &&
-    available.contextWindow &&
-    available.contextWindow < candidate.contextWindow
-  ) {
-    reasons.push(
-      `registered context window ${available.contextWindow} is below required ${candidate.contextWindow}`,
-    );
-  }
+  const available = findAvailableModel(candidate, availableModels);
+  const reasons = compatibilityReasons(candidate, available);
   return {
     candidate,
     ...(available ? { available } : {}),
@@ -73,45 +48,103 @@ export function discoverCandidates(
   availableModels: readonly AvailableModel[],
   policy: DiscoveryPolicy,
 ): readonly ModelCandidate[] {
+  validateDiscoveryPolicy(policy);
+  const patterns = compilePatterns(policy.modelAllowPatterns);
+  return availableModels
+    .filter((model) => isProviderAllowed(model, policy.providerAllowlist))
+    .filter((model) => matchesAnyPattern(model.id, patterns))
+    .sort(compareAvailableModels)
+    .slice(0, policy.maximumCandidates)
+    .map((model) => buildCandidate(model, policy.defaultEnabled));
+}
+
+function findAvailableModel(
+  candidate: ModelCandidate,
+  availableModels: readonly AvailableModel[],
+): AvailableModel | undefined {
+  return availableModels.find(
+    (model) =>
+      model.provider === candidate.provider && model.id === candidate.model,
+  );
+}
+
+function compatibilityReasons(
+  candidate: ModelCandidate,
+  available: AvailableModel | undefined,
+): string[] {
+  const reasons: string[] = [];
+  if (!available) {
+    reasons.push(
+      "model is absent from the host model registry or lacks configured authentication",
+    );
+    return reasons;
+  }
+  if (candidate.supportsImages && !available.input?.includes("image"))
+    reasons.push(
+      "candidate requires image support but the registered model does not advertise it",
+    );
+  if (
+    candidate.contextWindow &&
+    available.contextWindow &&
+    available.contextWindow < candidate.contextWindow
+  ) {
+    reasons.push(
+      `registered context window ${available.contextWindow} is below required ${candidate.contextWindow}`,
+    );
+  }
+  return reasons;
+}
+
+function validateDiscoveryPolicy(policy: DiscoveryPolicy): void {
   if (
     !Number.isInteger(policy.maximumCandidates) ||
     policy.maximumCandidates < 0
   ) {
     throw new Error("maximumCandidates must be a non-negative integer.");
   }
-  const patterns = policy.modelAllowPatterns.map(globToRegExp);
-  return availableModels
-    .filter(
-      (model) =>
-        policy.providerAllowlist.length === 0 ||
-        policy.providerAllowlist.includes(model.provider),
-    )
-    .filter(
-      (model) =>
-        patterns.length === 0 ||
-        patterns.some((pattern) => pattern.test(model.id)),
-    )
-    .sort((left, right) =>
-      `${left.provider}/${left.id}`.localeCompare(
-        `${right.provider}/${right.id}`,
-      ),
-    )
-    .slice(0, policy.maximumCandidates)
-    .map((model) => {
-      const taskTypes = inferTaskTypes(model);
-      return {
-        provider: model.provider,
-        model: model.id,
-        enabled: policy.defaultEnabled,
-        supportsImages: model.input?.includes("image") ?? false,
-        ...(model.contextWindow === undefined
-          ? {}
-          : { contextWindow: model.contextWindow }),
-        tags: ["discovered", model.provider, model.id],
-        workflowTags: inferWorkflowTags(model),
-        ...(taskTypes.length === 0 ? {} : { taskTypes }),
-      };
-    });
+}
+
+function compilePatterns(patterns: readonly string[]): readonly RegExp[] {
+  return patterns.map(globToRegExp);
+}
+
+function isProviderAllowed(
+  model: AvailableModel,
+  allowlist: readonly string[],
+): boolean {
+  return allowlist.length === 0 || allowlist.includes(model.provider);
+}
+
+function matchesAnyPattern(id: string, patterns: readonly RegExp[]): boolean {
+  return patterns.length === 0 || patterns.some((pattern) => pattern.test(id));
+}
+
+function compareAvailableModels(
+  left: AvailableModel,
+  right: AvailableModel,
+): number {
+  return `${left.provider}/${left.id}`.localeCompare(
+    `${right.provider}/${right.id}`,
+  );
+}
+
+function buildCandidate(
+  model: AvailableModel,
+  defaultEnabled: boolean,
+): ModelCandidate {
+  const taskTypes = inferTaskTypes(model);
+  return {
+    provider: model.provider,
+    model: model.id,
+    enabled: defaultEnabled,
+    supportsImages: model.input?.includes("image") ?? false,
+    ...(model.contextWindow === undefined
+      ? {}
+      : { contextWindow: model.contextWindow }),
+    tags: ["discovered", model.provider, model.id],
+    workflowTags: inferWorkflowTags(model),
+    ...(taskTypes.length === 0 ? {} : { taskTypes }),
+  };
 }
 
 function inferWorkflowTags(model: AvailableModel): readonly string[] {

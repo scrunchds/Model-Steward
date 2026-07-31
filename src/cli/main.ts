@@ -1,59 +1,84 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
-import { DEFAULT_CONFIG, validateConfig } from "../core/config.js";
+import { DEFAULT_CONFIG } from "../core/config.js";
 import { loadConfig } from "../core/config-file.js";
+import { createLogger, describeError, errorContext } from "../core/logger.js";
 
+const logger = createLogger("model-steward.cli");
 const [command = "help", argument] = process.argv.slice(2);
+process.exitCode = await runCommand(command, argument);
 
-try {
-  switch (command) {
-    case "help":
-    case "--help":
-    case "-h":
-      printHelp();
-      break;
-    case "version":
-    case "--version":
-      await printVersion();
-      break;
-    case "validate": {
-      const path = argument ?? ".model-steward/config.json";
-      const config = await loadConfig(path);
-      const errors = validateConfig(config);
-      if (errors.length > 0) throw new Error(errors.join(" "));
-      console.log(`Valid Model Steward configuration: ${path}`);
-      break;
+async function runCommand(
+  command: string,
+  argument: string | undefined,
+): Promise<number> {
+  try {
+    switch (command) {
+      case "help":
+      case "--help":
+      case "-h":
+        emitStdout(getHelpText());
+        return 0;
+      case "version":
+      case "--version":
+        emitStdout(await readVersion());
+        return 0;
+      case "validate": {
+        const path = argument ?? ".model-steward/config.json";
+        await loadConfig(path);
+        emitStdout(`Valid Model Steward configuration: ${path}`);
+        return 0;
+      }
+      case "defaults":
+        emitStdout(JSON.stringify(DEFAULT_CONFIG, null, 2));
+        return 0;
+      default:
+        logger.warn("Unknown CLI command.", { command });
+        emitStderr(`Unknown command: ${command}`);
+        emitStdout(getHelpText());
+        return 2;
     }
-    case "defaults":
-      console.log(JSON.stringify(DEFAULT_CONFIG, null, 2));
-      break;
-    default:
-      console.error(`Unknown command: ${command}`);
-      printHelp();
-      process.exitCode = 2;
+  } catch (error) {
+    reportCliFailure(command, error);
+    return 1;
   }
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
 }
 
-function printHelp(): void {
-  console.log(`Model Steward
+function getHelpText(): string {
+  return `Model Steward
 
 Usage:
   model-steward validate [config-path]
   model-steward defaults
   model-steward version
 
-This CLI never invokes a model, reads credentials, or sends network requests.`);
+This CLI never invokes a model, reads credentials, or sends network requests.`;
 }
 
-async function printVersion(): Promise<void> {
+async function readVersion(): Promise<string> {
   const packagePath = new URL("../../package.json", import.meta.url);
   const value = JSON.parse(await readFile(packagePath, "utf8")) as {
     version?: unknown;
   };
-  if (typeof value.version !== "string")
+  if (typeof value.version !== "string") {
     throw new Error("Package version is unavailable.");
-  console.log(value.version);
+  }
+  return value.version;
+}
+
+function reportCliFailure(command: string, error: unknown): void {
+  logger.error("CLI command failed.", {
+    command,
+    error: describeError(error),
+    ...errorContext(error),
+  });
+  emitStderr(describeError(error));
+}
+
+function emitStdout(message: string): void {
+  process.stdout.write(`${message}\n`);
+}
+
+function emitStderr(message: string): void {
+  process.stderr.write(`${message}\n`);
 }
