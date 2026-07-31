@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
-import { scoreCandidate } from "./scoring.js";
 import { inferTaskType } from "./features.js";
+import { scoreCandidateWithContext } from "./scoring.js";
 import type {
   ModelRef,
   Observation,
@@ -25,14 +25,13 @@ export function recommend(
       : features;
   const scores = config.candidates
     .map((candidate) =>
-      scoreCandidate(
-        candidate,
+      scoreCandidateWithContext(candidate, {
         observations,
-        effectiveFeatures,
-        config.weights,
-        config.minimumSamples,
-        config.highRiskAllowlist,
-      ),
+        features: effectiveFeatures,
+        weights: config.weights,
+        minimumSamples: config.minimumSamples,
+        highRiskAllowlist: config.highRiskAllowlist,
+      }),
     )
     .sort((left, right) => right.score - left.score);
   const workflowTags = effectiveFeatures.workflowTags ?? [];
@@ -118,9 +117,9 @@ function secureRandomUnit(): number {
 }
 
 function pickWorkflowAlignedCandidate(
-  scores: readonly ReturnType<typeof scoreCandidate>[],
+  scores: readonly ReturnType<typeof scoreCandidateWithContext>[],
   workflowTags: readonly string[],
-): ReturnType<typeof scoreCandidate> | undefined {
+): ReturnType<typeof scoreCandidateWithContext> | undefined {
   if (workflowTags.length === 0) return undefined;
   return scores.find((score) =>
     (score.candidate.tags ?? []).some((tag) => workflowTags.includes(tag)),
