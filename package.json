@@ -57,16 +57,16 @@
     }
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "0.82.1",
-    "@earendil-works/pi-coding-agent": "0.82.1",
-    "@earendil-works/pi-tui": "0.82.1",
+    "@earendil-works/pi-ai": "0.85.0",
+    "@earendil-works/pi-coding-agent": "0.85.0",
+    "@earendil-works/pi-tui": "0.85.0",
     "@eslint/js": "10.0.1",
-    "@types/node": "26.1.2",
+    "@types/node": "26.4.1",
     "@vitest/coverage-v8": "4.1.10",
-    "eslint": "10.8.0",
+    "eslint": "10.10.0",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.65.0",
+    "typescript-eslint": "8.69.0",
     "vitest": "4.1.10"
   }
 }
