@@ -61,12 +61,12 @@
     "@earendil-works/pi-coding-agent": "0.82.1",
     "@earendil-works/pi-tui": "0.82.1",
     "@eslint/js": "10.0.1",
-    "@types/node": "26.1.2",
+    "@types/node": "26.6.4",
     "@vitest/coverage-v8": "4.1.10",
-    "eslint": "10.8.0",
-    "prettier": "3.9.6",
+    "eslint": "10.12.0",
+    "prettier": "3.9.9",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.65.0",
+    "typescript-eslint": "8.71.0",
     "vitest": "4.1.10"
   }
 }
