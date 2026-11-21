@@ -109,7 +109,15 @@ function createModelStewardRuntime(
     ctx: ExtensionContext,
   ): Promise<void> {
     const startedAt = Date.now();
-    const features = dependencies.classifyTask(event.prompt);
+    const promptText =
+      event.messageType === "user"
+        ? event.prompt
+        : typeof event.message.content === "string"
+          ? event.message.content
+          : event.message.content
+              .flatMap((part) => (part.type === "text" ? [part.text] : []))
+              .join("\n");
+    const features = dependencies.classifyTask(promptText);
     const current = currentModel(ctx);
     pending = current ? { features, model: current, startedAt } : undefined;
 
